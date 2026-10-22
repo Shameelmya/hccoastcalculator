@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memento Cost Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-3 sm:p-6">
+
+    <div class="max-w-3xl mx-auto space-y-4">
+        
+        <!-- Header -->
+        <header class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 pb-1 border-b border-slate-800">
+            <div class="w-full sm:w-auto flex justify-center sm:justify-start">
+                <img src="https://hanicraft.in/web/assets/images/logo/logo.png" 
+                     alt="Hanicraft Logo" 
+                     class="h-12 sm:h-14 w-auto object-contain brightness-0 invert">
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="toggleSettings()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium transition touch-manipulation">
+                    <i class="fa-solid fa-sliders text-amber-400 mr-1.5"></i> Rates & Materials
+                </button>
+            </div>
+        </header>
+
+        <!-- Product Reference -->
+        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3">
+            <input type="text" id="productName" placeholder="Product Ref / Name (e.g. Executive Wooden Shield)" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-white focus:outline-none focus:border-amber-500">
+        </div>
+
+        <!-- Master Rates & Settings Panel -->
+        <div id="settingsPanel" class="hidden bg-slate-800/90 border border-amber-500/30 rounded-xl p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-700">
+                <span class="text-xs font-bold uppercase tracking-wide text-amber-400">Master Rates & Storage</span>
+                
+                <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                    <button type="button" onclick="exportDataToFile()" class="px-2.5 py-1 bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 rounded-md font-medium transition" title="Save backup file to phone folder">
+                        <i class="fa-solid fa-download mr-1"></i> Export Backup
+                    </button>
+                    <label class="px-2.5 py-1 bg-teal-500/20 text-teal-300 hover:bg-teal-500/30 rounded-md font-medium transition cursor-pointer">
+                        <i class="fa-solid fa-upload mr-1"></i> Import Backup
+                        <input type="file" id="importFileInput" accept=".json" onchange="importDataFromFile(event)" class="hidden">
+                    </label>
+                    <button type="button" onclick="openAddMaterialModal()" class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 rounded-md font-medium transition">
+                        + Material
+                    </button>
+                    <button type="button" onclick="openAddSubcatModal()" class="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 rounded-md font-medium transition">
+                        + Subcat
+                    </button>
+                    <button type="button" onclick="openAddVariantModal()" class="px-2.5 py-1 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-md font-medium transition">
+                        + Thickness
+                    </button>
+                </div>
+            </div>
+
+            <!-- Storage Warning (Visible only in Sandboxes like Google Sites) -->
+            <div id="sandboxWarning" class="hidden bg-rose-950/50 border border-rose-500/50 rounded-lg p-2.5 text-[10px] text-rose-300 flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5 text-rose-500"></i>
+                <div>
+                    <strong class="block text-rose-400">Google Sites Storage Blocked</strong>
+                    Google Sites blocks background saving inside embedded code blocks. Auto-save is disabled. You <b>MUST</b> use the <b>Export Backup</b> button to save your custom rates to your PC, and <b>Import Backup</b> when you refresh the page.
+                </div>
+            </div>
+
+            <!-- Dynamic Thickness Rates Grid -->
+            <div id="thicknessRatesContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+
+        <!-- Add Main Material Modal -->
+        <div id="addMaterialModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 w-full max-w-sm space-y-3 shadow-xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wide">Add Material</h3>
+                    <button type="button" onclick="closeAddMaterialModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Material Name</label>
+                        <input type="text" id="modalMaterialName" placeholder="e.g. Glass, Brass, Crystal" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Subcategory Name</label>
+                        <input type="text" id="modalMatSubcatName" placeholder="e.g. Clear, Frosted, Sheet" value="Standard" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Thickness Name</label>
+                        <input type="text" id="modalMatThicknessName" value="3 mm" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Price / Sq.Ft (₹)</label>
+                        <input type="number" id="modalMatRate" value="500" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-semibold focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800 text-xs font-semibold">
+                    <button type="button" onclick="closeAddMaterialModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+                    <button type="button" onclick="submitAddMaterial()" class="px-4 py-1.5 rounded-lg bg-emerald-600 text-white">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Subcategory Modal -->
+        <div id="addSubcatModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 w-full max-w-sm space-y-3 shadow-xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wide">Add Subcategory</h3>
+                    <button type="button" onclick="closeAddSubcatModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Target Material</label>
+                        <select id="subcatMaterialSelect" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Subcategory Name</label>
+                        <input type="text" id="modalSubcategoryName" placeholder="e.g. Rosewood, Frosted Glass" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Thickness Name</label>
+                        <input type="text" id="modalInitialThicknessName" value="8 mm" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Price / Sq.Ft (₹)</label>
+                        <input type="number" id="modalInitialThicknessRate" value="350" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-semibold focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800 text-xs font-semibold">
+                    <button type="button" onclick="closeAddSubcatModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+                    <button type="button" onclick="submitAddSubcategory()" class="px-4 py-1.5 rounded-lg bg-indigo-600 text-white">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Variant Modal -->
+        <div id="addVariantModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 w-full max-w-sm space-y-3 shadow-xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wide">Add Thickness Variant</h3>
+                    <button type="button" onclick="closeAddVariantModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Target Material</label>
+                        <select id="modalMaterialSelect" onchange="updateModalSubcatDropdown()" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Subcategory</label>
+                        <select id="modalSubcatSelect" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 focus:outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Thickness Label</label>
+                        <input type="text" id="modalThicknessName" placeholder="e.g. 10 mm" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Price / Sq.Ft (₹)</label>
+                        <input type="number" id="modalThicknessRate" placeholder="e.g. 400" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-semibold focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800 text-xs font-semibold">
+                    <button type="button" onclick="closeAddVariantModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+                    <button type="button" onclick="submitAddVariant()" class="px-4 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+            <!-- Inputs Column -->
+            <div class="md:col-span-7 space-y-3">
+                
+                <!-- Materials Block Container -->
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3.5 space-y-3">
+                    <div class="flex items-center justify-between pb-1 border-b border-slate-700/50">
+                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Materials</span>
+                        <button type="button" onclick="openAddMaterialModal()" class="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300">
+                            + Add Material
+                        </button>
+                    </div>
+
+                    <div id="dynamicMaterialsContainer" class="space-y-2.5"></div>
+                </div>
+
+                <!-- Expenses & Profit Card -->
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3.5 space-y-2.5">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 block">Processing & Labor</span>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Paint/Polish (₹)</label>
+                            <input type="number" id="paintCost" value="50" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Print (₹)</label>
+                            <input type="number" id="printCost" value="40" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">CNC Cut (₹)</label>
+                            <input type="number" id="cncCost" value="50" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Laser Cut (₹)</label>
+                            <input type="number" id="laserCutCost" value="40" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Laser Engrave (₹)</label>
+                            <input type="number" id="laserCost" value="60" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Labor (₹)</label>
+                            <input type="number" id="laborCost" value="50" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Box/Other (₹)</label>
+                            <input type="number" id="otherCost" value="30" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-white focus:outline-none">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Profit (%)</label>
+                            <input type="number" id="profitMargin" value="35" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-semibold text-emerald-400 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Minimal Summary Column -->
+            <div class="md:col-span-5 bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 flex flex-col justify-between space-y-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block pb-2 border-b border-slate-700/60 mb-2">
+                        Summary
+                    </span>
+
+                    <div class="space-y-1.5 text-xs">
+                        <div id="materialBreakdownContainer" class="space-y-1"></div>
+
+                        <div class="pt-1.5 border-t border-slate-700/50 flex justify-between text-slate-300">
+                            <span>Materials Total:</span>
+                            <span id="totalMatCostDisplay" class="font-bold text-white">₹0.00</span>
+                        </div>
+
+                        <div class="flex justify-between text-slate-400">
+                            <span>Paint & Finishing:</span>
+                            <span id="paintCostDisplay" class="text-white">₹0.00</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Printing:</span>
+                            <span id="printCostDisplay" class="text-white">₹0.00</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>CNC & Laser:</span>
+                            <span id="machiningCostDisplay" class="text-white">₹0.00</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Labor & Packaging:</span>
+                            <span id="laborOtherCostDisplay" class="text-white">₹0.00</span>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-700/80 flex justify-between font-bold text-xs text-slate-200">
+                            <span>Production Cost:</span>
+                            <span id="totalCostDisplay" class="text-amber-400">₹0.00</span>
+                        </div>
+
+                        <div class="flex justify-between text-emerald-400 font-medium">
+                            <span>Profit (<span id="profitPctLabel">35</span>%):</span>
+                            <span id="profitValDisplay">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Price Banner -->
+                <div class="bg-emerald-950/40 border border-emerald-500/30 p-3.5 rounded-xl text-center space-y-2">
+                    <div>
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Suggested Selling Price</span>
+                        <div id="sellingPriceDisplay" class="text-2xl font-black text-emerald-400 mt-0.5">₹0.00</div>
+                    </div>
+
+                    <button type="button" onclick="sendToWhatsApp()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 shadow transition touch-manipulation">
+                        <i class="fa-brands fa-whatsapp text-base"></i> Send Quotation
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        var materialRates = getDefaultRates();
+        var isStorageBlocked = false;
+
+        // INSTANT LOAD: Safely attempt to grab from local cache (Wrapped to bypass Google Sites crash)
+        try {
+            const cached = localStorage.getItem('memento_rates_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed && parsed.materials) {
+                    materialRates = parsed;
+                }
+            }
+        } catch(e) { 
+            console.warn("Storage is blocked by iframe sandbox (Google Sites)."); 
+            isStorageBlocked = true;
+        }
+
+        // Triggers saving to the local cache
+        function saveRates() {
+            try {
+                localStorage.setItem('memento_rates_cache', JSON.stringify(materialRates));
+            } catch(e) {
+                console.warn("Could not auto-save. Google Sites blocks local storage.");
+            }
+        }
+
+        // Default fallback data structure
+        function getDefaultRates() {
+            return {
+                materials: [
+                    {
+                        id: 'wood',
+                        name: 'Wood Layer',
+                        icon: 'fa-tree',
+                        subcategories: [
+                            {
+                                id: 'rubwood', name: 'Rubwood', variants: [
+                                    { id: 'rw_6mm', name: '6 mm', rate: 250 },
+                                    { id: 'rw_8mm', name: '8 mm', rate: 320 },
+                                    { id: 'rw_12mm', name: '12 mm', rate: 420 }
+                                ]
+                            },
+                            {
+                                id: 'mdf', name: 'MDF', variants: [
+                                    { id: 'mdf_3mm', name: '3 mm', rate: 120 },
+                                    { id: 'mdf_6mm', name: '6 mm', rate: 180 }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        id: 'acrylic',
+                        name: 'Acrylic Layer',
+                        icon: 'fa-layer-group',
+                        subcategories: [
+                            {
+                                id: 'clear_acrylic', name: 'Clear Acrylic', variants: [
+                                    { id: 'a_3mm', name: '3 mm', rate: 300 },
+                                    { id: 'a_5mm', name: '5 mm', rate: 450 }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        id: 'glass',
+                        name: 'Glass Layer',
+                        icon: 'fa-window-maximize',
+                        subcategories: [
+                            {
+                                id: 'clear_glass', name: 'Clear Glass', variants: [
+                                    { id: 'g_4mm', name: '4 mm', rate: 280 },
+                                    { id: 'g_6mm', name: '6 mm', rate: 380 }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function renderDynamicMaterials() {
+            const container = document.getElementById('dynamicMaterialsContainer');
+            const summaryContainer = document.getElementById('materialBreakdownContainer');
+            if (!container || !summaryContainer) return;
+
+            container.innerHTML = '';
+            summaryContainer.innerHTML = '';
+
+            materialRates.materials.forEach(mat => {
+                // Generate material row inside main inputs
+                const matCard = document.createElement('div');
+                matCard.className = 'p-2.5 bg-slate-900/80 border border-slate-700/60 rounded-xl space-y-2';
+                
+                let subcatOptions = '';
+                mat.subcategories.forEach(sub => {
+                    subcatOptions += `<option value="${sub.id}">${sub.name}</option>`;
+                });
+
+                matCard.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-200">
+                            <input type="checkbox" id="chk_${mat.id}" checked onchange="calculate()" class="rounded bg-slate-800 border-slate-700 text-amber-500 focus:ring-amber-500">
+                            <i class="fa-solid ${mat.icon || 'fa-cubes'} text-amber-400"></i> ${mat.name}
+                        </label>
+                        <span id="subtotal_${mat.id}" class="text-xs font-bold text-amber-400">₹0.00</span>
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-2 text-xs">
+                        <div class="col-span-6 sm:col-span-4">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Type</label>
+                            <select id="subcat_${mat.id}" onchange="populateThicknessDropdown('${mat.id}')" class="w-full bg-slate-800 border border-slate-700 text-white rounded px-2 py-1 text-xs focus:outline-none">
+                                ${subcatOptions}
+                            </select>
+                        </div>
+                        <div class="col-span-6 sm:col-span-4">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">Thickness</label>
+                            <select id="thickness_${mat.id}" onchange="calculate()" class="w-full bg-slate-800 border border-slate-700 text-white rounded px-2 py-1 text-xs focus:outline-none">
+                            </select>
+                        </div>
+                        <div class="col-span-6 sm:col-span-2">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">W (in)</label>
+                            <input type="number" id="w_${mat.id}" value="8" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white font-semibold focus:outline-none">
+                        </div>
+                        <div class="col-span-6 sm:col-span-2">
+                            <label class="text-[10px] text-slate-400 block mb-0.5">H (in)</label>
+                            <input type="number" id="h_${mat.id}" value="10" oninput="calculate()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white font-semibold focus:outline-none">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(matCard);
+
+                // Populate thickness dropdown for this material
+                populateThicknessDropdown(mat.id);
+
+                // Summary row
+                const summaryRow = document.createElement('div');
+                summaryRow.id = `row_${mat.id}`;
+                summaryRow.className = 'flex justify-between text-slate-400';
+                summaryRow.innerHTML = `
+                    <span>• ${mat.name} (<span id="subcatLabel_${mat.id}">-</span>):</span>
+                    <span id="costDisplay_${mat.id}" class="text-white">₹0.00</span>
+                `;
+                summaryContainer.appendChild(summaryRow);
+            });
+        }
+
+        function populateThicknessDropdown(matId) {
+            const mat = materialRates.materials.find(m => m.id === matId);
+            if (!mat) return;
+
+            const subcatSelect = document.getElementById(`subcat_${matId}`);
+            const thicknessSelect = document.getElementById(`thickness_${matId}`);
+            if (!subcatSelect || !thicknessSelect) return;
+
+            const subcatId = subcatSelect.value || (mat.subcategories[0] ? mat.subcategories[0].id : null);
+            const subcat = mat.subcategories.find(s => s.id === subcatId) || mat.subcategories[0];
+
+            thicknessSelect.innerHTML = '';
+            if (subcat && subcat.variants) {
+                subcat.variants.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.id;
+                    opt.text = `${v.name} (₹${v.rate}/sq.ft)`;
+                    thicknessSelect.appendChild(opt);
+                });
+            }
+            calculate();
+        }
+
+        function renderSettingsPanel() {
+            const container = document.getElementById('thicknessRatesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Show warning if in Google Sites sandbox
+            if (isStorageBlocked) {
+                const warningEl = document.getElementById('sandboxWarning');
+                if (warningEl) warningEl.classList.remove('hidden');
+            }
+
+            materialRates.materials.forEach(mat => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900 border border-slate-700 rounded-lg p-2.5 space-y-2 text-xs';
+
+                let subcatContent = '';
+                mat.subcategories.forEach(sub => {
+                    let variantItems = '';
+                    sub.variants.forEach((v, idx) => {
+                        variantItems += `
+                            <div class="flex items-center justify-between text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700/60">
+                                <span class="text-slate-300 font-medium">${v.name}</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-amber-400 font-bold">₹${v.rate}</span>
+                                    <button type="button" onclick="removeVariant('${mat.id}', '${sub.id}', ${idx})" class="text-rose-400 hover:text-rose-300 ml-1">
+                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    subcatContent += `
+                        <div class="space-y-1 pt-1 border-t border-slate-800">
+                            <span class="text-[10px] font-bold uppercase text-slate-400">${sub.name}</span>
+                            <div class="space-y-1">${variantItems}</div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between font-bold text-white border-b border-slate-800 pb-1">
+                        <span class="text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid ${mat.icon || 'fa-cubes'}"></i> ${mat.name}
+                        </span>
+                        ${materialRates.materials.length > 1 ? `
+                            <button type="button" onclick="deleteMainMaterial('${mat.id}')" class="text-rose-400 hover:text-rose-300 text-xs" title="Delete Material">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div class="space-y-2">${subcatContent}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Modal triggers
+        function openAddMaterialModal() {
+            document.getElementById('addMaterialModal').classList.remove('hidden');
+        }
+        function closeAddMaterialModal() {
+            document.getElementById('addMaterialModal').classList.add('hidden');
+        }
+
+        function openAddSubcatModal() {
+            const sel = document.getElementById('subcatMaterialSelect');
+            sel.innerHTML = '';
+            materialRates.materials.forEach(m => {
+                sel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+            document.getElementById('addSubcatModal').classList.remove('hidden');
+        }
+        function closeAddSubcatModal() {
+            document.getElementById('addSubcatModal').classList.add('hidden');
+        }
+
+        function openAddVariantModal() {
+            const matSel = document.getElementById('modalMaterialSelect');
+            matSel.innerHTML = '';
+            materialRates.materials.forEach(m => {
+                matSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+            updateModalSubcatDropdown();
+            document.getElementById('addVariantModal').classList.remove('hidden');
+        }
+        function closeAddVariantModal() {
+            document.getElementById('addVariantModal').classList.add('hidden');
+        }
+
+        function updateModalSubcatDropdown() {
+            const matId = document.getElementById('modalMaterialSelect').value;
+            const subSel = document.getElementById('modalSubcatSelect');
+            subSel.innerHTML = '';
+
+            const mat = materialRates.materials.find(m => m.id === matId);
+            if (mat && mat.subcategories) {
+                mat.subcategories.forEach(s => {
+                    subSel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+            }
+        }
+
+        function submitAddMaterial() {
+            const matName = document.getElementById('modalMaterialName').value.trim();
+            const subcatName = document.getElementById('modalMatSubcatName').value.trim() || 'Standard';
+            const thicknessName = document.getElementById('modalMatThicknessName').value.trim() || '3 mm';
+            const rate = parseFloat(document.getElementById('modalMatRate').value) || 0;
+
+            if (!matName) return;
+
+            const matId = `mat_${Date.now()}`;
+            const subcatId = `sub_${matId}_1`;
+
+            materialRates.materials.push({
+                id: matId,
+                name: matName,
+                icon: 'fa-cubes',
+                subcategories: [{
+                    id: subcatId,
+                    name: subcatName,
+                    variants: [{ id: `v_${subcatId}_1`, name: thicknessName, rate: rate }]
+                }]
+            });
+
+            saveRates();
+            renderDynamicMaterials();
+            renderSettingsPanel();
+            closeAddMaterialModal();
+            calculate();
+        }
+
+        function submitAddSubcategory() {
+            const matId = document.getElementById('subcatMaterialSelect').value;
+            const subcatName = document.getElementById('modalSubcategoryName').value.trim();
+            const thicknessName = document.getElementById('modalInitialThicknessName').value.trim() || 'Default';
+            const rate = parseFloat(document.getElementById('modalInitialThicknessRate').value) || 0;
+
+            if (!subcatName) return;
+
+            const mat = materialRates.materials.find(m => m.id === matId);
+            if (mat) {
+                const newSubcatId = `sub_${matId}_${Date.now()}`;
+                mat.subcategories.push({
+                    id: newSubcatId,
+                    name: subcatName,
+                    variants: [{ id: `v_${newSubcatId}_1`, name: thicknessName, rate: rate }]
+                });
+
+                saveRates();
+                renderDynamicMaterials();
+                renderSettingsPanel();
+                closeAddSubcatModal();
+                calculate();
+            }
+        }
+
+        function submitAddVariant() {
+            const matId = document.getElementById('modalMaterialSelect').value;
+            const subcatId = document.getElementById('modalSubcatSelect').value;
+            const name = document.getElementById('modalThicknessName').value.trim();
+            const rate = parseFloat(document.getElementById('modalThicknessRate').value) || 0;
+
+            if (!name) return;
+
+            const mat = materialRates.materials.find(m => m.id === matId);
+            const subcat = mat?.subcategories.find(s => s.id === subcatId);
+
+            if (subcat) {
+                subcat.variants.push({
+                    id: `v_${subcatId}_${Date.now()}`,
+                    name: name,
+                    rate: rate
+                });
+
+                saveRates();
+                renderSettingsPanel();
+                populateThicknessDropdown(matId);
+                closeAddVariantModal();
+                calculate();
+            }
+        }
+
+        function deleteMainMaterial(matId) {
+            if (materialRates.materials.length <= 1) return;
+            materialRates.materials = materialRates.materials.filter(m => m.id !== matId);
+            
+            saveRates();
+            renderDynamicMaterials();
+            renderSettingsPanel();
+            calculate();
+        }
+
+        function removeVariant(matId, subcatId, vIdx) {
+            const mat = materialRates.materials.find(m => m.id === matId);
+            const subcat = mat?.subcategories.find(s => s.id === subcatId);
+            if (!subcat) return;
+
+            subcat.variants.splice(vIdx, 1);
+            
+            saveRates();
+            renderSettingsPanel();
+            populateThicknessDropdown(matId);
+            calculate();
+        }
+
+        function exportDataToFile() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(materialRates, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `hanicraft_memento_rates_backup_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importDataFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && Array.isArray(parsed.materials)) {
+                        materialRates = parsed;
+                        saveRates();
+                        renderDynamicMaterials();
+                        renderSettingsPanel();
+                        calculate();
+                        alert('Backup imported successfully!');
+                    } else {
+                        alert('Invalid backup file structure.');
+                    }
+                } catch (err) {
+                    alert('Error parsing backup file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function calculate() {
+            let totalMatCost = 0;
+            const fmt = (val) => '₹' + val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            materialRates.materials.forEach(mat => {
+                const chk = document.getElementById(`chk_${mat.id}`);
+                if (!chk || !chk.checked) {
+                    const subEl = document.getElementById(`subtotal_${mat.id}`);
+                    if (subEl) subEl.innerText = '₹0.00';
+                    const rowEl = document.getElementById(`row_${mat.id}`);
+                    if (rowEl) rowEl.classList.add('hidden');
+                    return;
+                }
+
+                const w = parseFloat(document.getElementById(`w_${mat.id}`)?.value) || 0;
+                const h = parseFloat(document.getElementById(`h_${mat.id}`)?.value) || 0;
+                const sqFeet = (w * h) / 144;
+
+                const subcatId = document.getElementById(`subcat_${mat.id}`)?.value;
+                const variantId = document.getElementById(`thickness_${mat.id}`)?.value;
+
+                const subcat = mat.subcategories.find(s => s.id === subcatId) || mat.subcategories[0];
+                const variant = subcat?.variants.find(v => v.id === variantId) || subcat?.variants[0];
+
+                const rate = variant ? variant.rate : 0;
+                const cost = sqFeet * rate;
+                totalMatCost += cost;
+
+                const subtotalEl = document.getElementById(`subtotal_${mat.id}`);
+                if (subtotalEl) subtotalEl.innerText = fmt(cost);
+
+                const costDisp = document.getElementById(`costDisplay_${mat.id}`);
+                if (costDisp) costDisp.innerText = fmt(cost);
+
+                if (subcat) {
+                    const subLbl = document.getElementById(`subcatLabel_${mat.id}`);
+                    if (subLbl) subLbl.innerText = subcat.name;
+                }
+
+                const rowEl = document.getElementById(`row_${mat.id}`);
+                if (rowEl) rowEl.classList.remove('hidden');
+            });
+
+            const paint = parseFloat(document.getElementById('paintCost').value) || 0;
+            const print = parseFloat(document.getElementById('printCost').value) || 0;
+            const cnc = parseFloat(document.getElementById('cncCost').value) || 0;
+            const laserCut = parseFloat(document.getElementById('laserCutCost').value) || 0;
+            const laser = parseFloat(document.getElementById('laserCost').value) || 0;
+            const labor = parseFloat(document.getElementById('laborCost').value) || 0;
+            const other = parseFloat(document.getElementById('otherCost').value) || 0;
+            const marginPct = parseFloat(document.getElementById('profitMargin').value) || 0;
+
+            const totalProdCost = totalMatCost + paint + print + cnc + laserCut + laser + labor + other;
+            const profitVal = totalProdCost * (marginPct / 100);
+            const sellingPrice = totalProdCost + profitVal;
+
+            document.getElementById('totalMatCostDisplay').innerText = fmt(totalMatCost);
+            document.getElementById('paintCostDisplay').innerText = fmt(paint);
+            document.getElementById('printCostDisplay').innerText = fmt(print);
+            document.getElementById('machiningCostDisplay').innerText = fmt(cnc + laserCut + laser);
+            document.getElementById('laborOtherCostDisplay').innerText = fmt(labor + other);
+
+            document.getElementById('totalCostDisplay').innerText = fmt(totalProdCost);
+            document.getElementById('profitPctLabel').innerText = marginPct;
+            document.getElementById('profitValDisplay').innerText = fmt(profitVal);
+            document.getElementById('sellingPriceDisplay').innerText = fmt(sellingPrice);
+        }
+
+        function sendToWhatsApp() {
+            const prodName = document.getElementById('productName').value.trim() || 'Custom Memento';
+            
+            let materialsText = '';
+            materialRates.materials.forEach(mat => {
+                const chk = document.getElementById(`chk_${mat.id}`);
+                if (chk && chk.checked) {
+                    const w = document.getElementById(`w_${mat.id}`)?.value || '0';
+                    const h = document.getElementById(`h_${mat.id}`)?.value || '0';
+                    const subcatName = document.getElementById(`subcatLabel_${mat.id}`)?.innerText || '';
+                    const sel = document.getElementById(`thickness_${mat.id}`);
+                    const text = sel?.options[sel.selectedIndex]?.text || '';
+                    const cost = document.getElementById(`costDisplay_${mat.id}`)?.innerText || '₹0.00';
+                    materialsText += `• *${mat.name} (${subcatName}):* ${text} (${w}" x ${h}") = ${cost}\n`;
+                }
+            });
+
+            if (!materialsText) materialsText = '• None selected\n';
+
+            const totalProdCost = document.getElementById('totalCostDisplay').innerText;
+            const profitPct = document.getElementById('profitMargin').value || '0';
+            const profitVal = document.getElementById('profitValDisplay').innerText;
+            const sellingPrice = document.getElementById('sellingPriceDisplay').innerText;
+
+            const msg = `*HANICRAFT CREATIVES LLP*\n` +
+                        `*Memento Costing & Quotation*\n` +
+                        `------------------------------------\n` +
+                        `📌 *Product:* ${prodName}\n\n` +
+                        `📋 *Materials:*\n${materialsText}\n` +
+                        `💰 *Production Cost:* ${totalProdCost}\n` +
+                        `📈 *Profit (${profitPct}%):* ${profitVal}\n` +
+                        `🏷 *Selling Price:* *${sellingPrice}*\n` +
+                        `------------------------------------`;
+
+            const phone = "919645030951";
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        window.onload = function() {
+            renderDynamicMaterials();
+            renderSettingsPanel();
+            calculate();
+        };
+    </script>
+</body>
+</html>
